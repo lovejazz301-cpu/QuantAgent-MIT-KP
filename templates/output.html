@@ -511,6 +511,26 @@
                      </div>
                  </div>
                  
+                 {% if results.trade_execution %}
+                 <div class="panel" style="border-left: 4px solid {{ '#059669' if results.trade_execution.executed else '#9CA3AF' }};">
+                     {% if results.trade_execution.executed %}
+                         {% set pos = results.trade_execution.position %}
+                         <p style="margin: 0;">
+                             <i class="fas fa-robot"></i>
+                             <strong>AI Trade:</strong> Simulated {{ pos.direction }} position opened on {{ pos.asset }}
+                             @ {{ '%.4f'|format(pos.entry_price) }} (stop {{ '%.4f'|format(pos.stop_loss) }}, target {{ '%.4f'|format(pos.take_profit) }}).
+                             <a href="/ai-trade">View AI Trade portfolio &rarr;</a>
+                         </p>
+                     {% else %}
+                         <p style="margin: 0; color: #6B7280;">
+                             <i class="fas fa-robot"></i>
+                             <strong>AI Trade:</strong> {{ results.trade_execution.reason }}
+                             <a href="/ai-trade">View AI Trade portfolio &rarr;</a>
+                         </p>
+                     {% endif %}
+                 </div>
+                 {% endif %}
+
                  <!-- Final Decision Panel -->
                  <div class="panel">
                      <h4 class="panel-title">

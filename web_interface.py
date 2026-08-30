@@ -12,6 +12,7 @@ from flask import Flask, jsonify, render_template, request, send_file
 from openai import OpenAI
 
 import static_util
+from trade_engine import TradeEngine
 from trading_graph import TradingGraph
 
 app = Flask(__name__)
@@ -75,6 +76,33 @@ class WebTradingAnalyzer:
         # Load persisted custom assets
         self.custom_assets_file = self.data_dir / "custom_assets.json"
         self.custom_assets = self.load_custom_assets()
+
+        # AI Trade: paper-trading engine, auto-executes on LONG/SHORT signals
+        self.trade_engine = TradeEngine(self.data_dir / "paper_trades.json")
+
+    def resolve_yf_symbol(self, asset: str) -> str:
+        """Resolve an asset code to its Yahoo Finance symbol (falls back to the code itself)."""
+        return self.yfinance_symbols.get(asset, asset)
+
+    def get_live_prices(self, symbols: list) -> Dict[str, float]:
+        """Fetch the latest price for each unique Yahoo Finance symbol."""
+        prices = {}
+        for symbol in set(symbols):
+            price = None
+            try:
+                price = yf.Ticker(symbol).fast_info["last_price"]
+            except Exception:
+                price = None
+            if not price:
+                try:
+                    hist = yf.Ticker(symbol).history(period="1d", interval="1m")
+                    if not hist.empty:
+                        price = float(hist["Close"].iloc[-1])
+                except Exception:
+                    price = None
+            if price:
+                prices[symbol] = float(price)
+        return prices
 
     def fetch_yfinance_data(
         self, symbol: str, interval: str, start_date: str, end_date: str
@@ -729,6 +757,29 @@ def analyze():
         results = analyzer.run_analysis(df, display_name, timeframe)
         formatted_results = analyzer.extract_analysis_results(results)
 
+        # AI Trade: auto-execute a paper trade when the agents issue a LONG/SHORT decision
+        if formatted_results.get("success") and isinstance(
+            formatted_results.get("final_decision"), dict
+        ):
+            decision = formatted_results["final_decision"].get("decision")
+            try:
+                current_price = float(df["Close"].iloc[-1])
+            except (IndexError, ValueError, TypeError):
+                current_price = None
+
+            if decision in ("LONG", "SHORT") and current_price:
+                trade_result = analyzer.trade_engine.auto_execute(
+                    asset=display_name,
+                    symbol=analyzer.resolve_yf_symbol(asset),
+                    decision=decision,
+                    current_price=current_price,
+                    risk_reward_ratio=formatted_results["final_decision"].get(
+                        "risk_reward_ratio"
+                    ),
+                    timeframe=timeframe,
+                )
+                formatted_results["trade_execution"] = trade_result
+
         # If redirect is requested, return redirect URL with results
         if redirect_to_output:
             if formatted_results.get("success", False):
@@ -1026,6 +1077,66 @@ def validate_api_key():
         return jsonify(validation)
     except Exception as e:
         return jsonify({"valid": False, "error": str(e)})
+
+
+@app.route("/ai-trade")
+def ai_trade():
+    """AI Trade dashboard - paper-trading portfolio driven by agent signals."""
+    return render_template("ai_trade.html")
+
+
+@app.route("/api/trade/state")
+def trade_state():
+    """API endpoint to fetch the current paper-trading portfolio, marked to market."""
+    try:
+        open_positions = analyzer.trade_engine.state["open_positions"]
+        symbols = [pos["symbol"] for pos in open_positions]
+        if symbols:
+            prices = analyzer.get_live_prices(symbols)
+            analyzer.trade_engine.update_prices(prices)
+
+        return jsonify(analyzer.trade_engine.get_state())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/trade/close", methods=["POST"])
+def trade_close():
+    """API endpoint to manually close an open paper position."""
+    try:
+        data = request.get_json() or {}
+        position_id = data.get("id")
+        if position_id is None:
+            return jsonify({"error": "Position id is required"}), 400
+
+        position = next(
+            (
+                p
+                for p in analyzer.trade_engine.state["open_positions"]
+                if p["id"] == position_id
+            ),
+            None,
+        )
+        if position is None:
+            return jsonify({"error": "Position not found"}), 404
+
+        prices = analyzer.get_live_prices([position["symbol"]])
+        exit_price = prices.get(position["symbol"], position["last_price"])
+
+        closed = analyzer.trade_engine.close_position(position_id, exit_price, "manual")
+        return jsonify({"success": True, "closed_position": closed, "state": analyzer.trade_engine.get_state()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/trade/reset", methods=["POST"])
+def trade_reset():
+    """API endpoint to reset the paper-trading portfolio back to the starting balance."""
+    try:
+        analyzer.trade_engine.reset()
+        return jsonify({"success": True, "state": analyzer.trade_engine.get_state()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/assets/<path:filename>")

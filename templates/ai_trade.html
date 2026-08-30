@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>AI Trade - QuantAgent</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --etrade-purple: #241056;
+            --etrade-purple-light: #5627D8;
+            --etrade-purple-dark: #1A0B3A;
+            --etrade-purple-bg: #F8F5FF;
+            --white: #ffffff;
+            --gray-100: #F3F4F6;
+            --gray-200: #E5E7EB;
+            --gray-400: #9CA3AF;
+            --gray-500: #6B7280;
+            --gray-700: #374151;
+            --gray-800: #1F2937;
+            --green: #059669;
+            --green-bg: #ECFDF5;
+            --red: #DC2626;
+            --red-bg: #FEF2F2;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--etrade-purple-bg);
+            color: var(--gray-800);
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .topbar {
+            background: linear-gradient(135deg, var(--etrade-purple) 0%, var(--etrade-purple-dark) 100%);
+            padding: 1.5rem 1.5rem 2.5rem;
+            color: white;
+        }
+
+        .topbar-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .topbar h1 {
+            font-size: 1.6rem;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .topbar p {
+            margin: 0.35rem 0 0;
+            color: #D8CFF2;
+            font-size: 0.95rem;
+        }
+
+        .back-link {
+            color: white;
+            text-decoration: none;
+            font-size: 0.9rem;
+            opacity: 0.85;
+        }
+
+        .back-link:hover { opacity: 1; }
+
+        .container {
+            max-width: 1100px;
+            margin: -1.75rem auto 3rem;
+            padding: 0 1.5rem;
+        }
+
+        .disclaimer {
+            background: #FFFBEB;
+            border: 1px solid #FDE68A;
+            color: #92400E;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 4px 16px rgba(36, 16, 86, 0.08);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.4rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--etrade-purple);
+        }
+
+        .stat-value.pos { color: var(--green); }
+        .stat-value.neg { color: var(--red); }
+
+        .panel {
+            background: white;
+            border-radius: 14px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 16px rgba(36, 16, 86, 0.08);
+            margin-bottom: 1.75rem;
+        }
+
+        .panel-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--etrade-purple);
+            margin: 0 0 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            justify-content: space-between;
+        }
+
+        .panel-title span.left { display: flex; align-items: center; gap: 0.5rem; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            text-align: left;
+            color: var(--gray-500);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            padding: 0.5rem 0.6rem;
+            border-bottom: 2px solid var(--gray-100);
+        }
+
+        td {
+            padding: 0.65rem 0.6rem;
+            border-bottom: 1px solid var(--gray-100);
+            vertical-align: middle;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .badge-long { background: var(--green-bg); color: var(--green); }
+        .badge-short { background: var(--red-bg); color: var(--red); }
+
+        .pnl-pos { color: var(--green); font-weight: 600; }
+        .pnl-neg { color: var(--red); font-weight: 600; }
+
+        .close-btn {
+            background: var(--etrade-purple);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 0.35rem 0.7rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .close-btn:hover { background: var(--etrade-purple-light); }
+        .close-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .empty-state {
+            text-align: center;
+            color: var(--gray-400);
+            padding: 2rem 0;
+            font-size: 0.9rem;
+        }
+
+        .reset-btn {
+            background: transparent;
+            border: 1px solid var(--gray-200);
+            color: var(--gray-500);
+            border-radius: 8px;
+            padding: 0.4rem 0.9rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .reset-btn:hover { border-color: var(--red); color: var(--red); }
+
+        .run-btn {
+            background: var(--etrade-purple);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .run-btn:hover { background: var(--etrade-purple-light); }
+
+        @media (max-width: 640px) {
+            table, thead, tbody, th, td, tr { display: block; }
+            thead { display: none; }
+            tr { border-bottom: 1px solid var(--gray-200); padding: 0.75rem 0; }
+            td { border: none; padding: 0.25rem 0; }
+            td::before { content: attr(data-label); font-weight: 600; color: var(--gray-500); display: inline-block; width: 110px; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="topbar">
+        <div class="topbar-inner">
+            <div>
+                <h1><i class="fas fa-robot"></i> AI Trade</h1>
+                <p>Paper-trading portfolio &mdash; auto-executed from live agent signals</p>
+            </div>
+            <a class="back-link" href="/demo"><i class="fas fa-arrow-left"></i> Back to Analysis</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="disclaimer">
+            <i class="fas fa-info-circle"></i>
+            This is a simulated (paper) trading system for research/education. No real orders are placed and no
+            real money is at risk. Every time the AI agents issue a LONG or SHORT decision on the Analysis page,
+            a simulated position is opened automatically here.
+        </div>
+
+        <div class="summary-grid" id="summaryGrid">
+            <div class="stat-card">
+                <div class="stat-label">Equity</div>
+                <div class="stat-value" id="statEquity">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Cash Balance</div>
+                <div class="stat-value" id="statBalance">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Unrealized P&amp;L</div>
+                <div class="stat-value" id="statUnrealized">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Realized P&amp;L</div>
+                <div class="stat-value" id="statRealized">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value" id="statWinRate">&mdash;</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">
+                <span class="left"><i class="fas fa-chart-line"></i> Open Positions</span>
+                <a class="run-btn" href="/demo#analysis"><i class="fas fa-play"></i> Run New Signal</a>
+            </div>
+            <div id="openPositionsWrap">
+                <div class="empty-state">Loading...</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">
+                <span class="left"><i class="fas fa-history"></i> Trade History</span>
+                <button class="reset-btn" id="resetBtn"><i class="fas fa-rotate-left"></i> Reset Portfolio</button>
+            </div>
+            <div id="historyWrap">
+                <div class="empty-state">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function fmtMoney(n) {
+            const sign = n < 0 ? '-' : '';
+            return sign + '$' + Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function fmtPrice(n) {
+            return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+        }
+
+        function fmtTime(iso) {
+            if (!iso) return '—';
+            const d = new Date(iso);
+            return d.toLocaleString();
+        }
+
+        function setPnlClass(el, value) {
+            el.classList.remove('pos', 'neg');
+            el.classList.add(value >= 0 ? 'pos' : 'neg');
+        }
+
+        function renderOpenPositions(positions) {
+            const wrap = document.getElementById('openPositionsWrap');
+            if (!positions.length) {
+                wrap.innerHTML = '<div class="empty-state">No open positions. Run an analysis to generate a signal.</div>';
+                return;
+            }
+
+            let rows = positions.map(p => {
+                const pnlClass = p.unrealized_pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+                const badgeClass = p.direction === 'LONG' ? 'badge-long' : 'badge-short';
+                return `
+                <tr>
+                    <td data-label="Asset"><strong>${p.asset}</strong><br><span style="color:#9CA3AF;font-size:0.75rem;">${p.timeframe}</span></td>
+                    <td data-label="Side"><span class="badge ${badgeClass}">${p.direction}</span></td>
+                    <td data-label="Entry">${fmtPrice(p.entry_price)}</td>
+                    <td data-label="Current">${fmtPrice(p.last_price)}</td>
+                    <td data-label="Stop">${fmtPrice(p.stop_loss)}</td>
+                    <td data-label="Target">${fmtPrice(p.take_profit)}</td>
+                    <td data-label="P&amp;L" class="${pnlClass}">${fmtMoney(p.unrealized_pnl)} (${p.unrealized_pnl_pct.toFixed(2)}%)</td>
+                    <td data-label="Opened">${fmtTime(p.opened_at)}</td>
+                    <td data-label=""><button class="close-btn" onclick="closePosition(${p.id}, this)">Close</button></td>
+                </tr>`;
+            }).join('');
+
+            wrap.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Asset</th><th>Side</th><th>Entry</th><th>Current</th>
+                        <th>Stop</th><th>Target</th><th>P&amp;L</th><th>Opened</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+        }
+
+        function renderHistory(closed) {
+            const wrap = document.getElementById('historyWrap');
+            if (!closed.length) {
+                wrap.innerHTML = '<div class="empty-state">No closed trades yet.</div>';
+                return;
+            }
+
+            let rows = closed.map(p => {
+                const pnlClass = p.pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+                const badgeClass = p.direction === 'LONG' ? 'badge-long' : 'badge-short';
+                return `
+                <tr>
+                    <td data-label="Asset"><strong>${p.asset}</strong></td>
+                    <td data-label="Side"><span class="badge ${badgeClass}">${p.direction}</span></td>
+                    <td data-label="Entry">${fmtPrice(p.entry_price)}</td>
+                    <td data-label="Exit">${fmtPrice(p.exit_price)}</td>
+                    <td data-label="P&amp;L" class="${pnlClass}">${fmtMoney(p.pnl)} (${p.pnl_pct.toFixed(2)}%)</td>
+                    <td data-label="Reason">${p.close_reason}</td>
+                    <td data-label="Closed">${fmtTime(p.closed_at)}</td>
+                </tr>`;
+            }).join('');
+
+            wrap.innerHTML = `
+            <table>
+                <thead>
+                    <tr><th>Asset</th><th>Side</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Reason</th><th>Closed</th></tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+        }
+
+        function renderSummary(state) {
+            document.getElementById('statEquity').textContent = fmtMoney(state.equity);
+            document.getElementById('statBalance').textContent = fmtMoney(state.balance);
+
+            const unrealizedEl = document.getElementById('statUnrealized');
+            unrealizedEl.textContent = fmtMoney(state.unrealized_pnl);
+            setPnlClass(unrealizedEl, state.unrealized_pnl);
+
+            const realizedEl = document.getElementById('statRealized');
+            realizedEl.textContent = fmtMoney(state.realized_pnl);
+            setPnlClass(realizedEl, state.realized_pnl);
+
+            document.getElementById('statWinRate').textContent =
+                state.total_trades ? state.win_rate.toFixed(1) + '% (' + state.total_trades + ' trades)' : '—';
+        }
+
+        function loadState() {
+            fetch('/api/trade/state')
+                .then(r => r.json())
+                .then(state => {
+                    if (state.error) { console.error(state.error); return; }
+                    renderSummary(state);
+                    renderOpenPositions(state.open_positions);
+                    renderHistory(state.closed_positions);
+                })
+                .catch(err => console.error('Failed to load trade state', err));
+        }
+
+        function closePosition(id, btn) {
+            btn.disabled = true;
+            btn.textContent = 'Closing...';
+            fetch('/api/trade/close', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) { alert('Failed to close position: ' + data.error); }
+                    loadState();
+                })
+                .catch(err => {
+                    alert('Failed to close position.');
+                    console.error(err);
+                });
+        }
+
+        document.getElementById('resetBtn').addEventListener('click', function () {
+            if (!confirm('Reset the paper-trading portfolio back to the starting balance? This clears all open positions and history.')) return;
+            fetch('/api/trade/reset', { method: 'POST' })
+                .then(r => r.json())
+                .then(() => loadState())
+                .catch(err => console.error(err));
+        });
+
+        loadState();
+        setInterval(loadState, 15000);
+    </script>
+</body>
+
+</html>
